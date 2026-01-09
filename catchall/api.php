@@ -30,6 +30,71 @@ $requestsFile = __DIR__ . '/requests.json';
 // File to store current response template selection
 $responseTemplateFile = __DIR__ . '/response_template.json';
 
+// Function to get the real client IP address
+function getClientIp() {
+    // Check for X-Forwarded-For header (common in proxy/load balancer setups)
+    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        $ip = trim($ips[0]);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            return $ip;
+        }
+    }
+    
+    // Check for X-Real-IP header (nginx proxy)
+    if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+        $ip = trim($_SERVER['HTTP_X_REAL_IP']);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            return $ip;
+        }
+    }
+    
+    // Check for X-Forwarded header (some proxies)
+    if (!empty($_SERVER['HTTP_X_FORWARDED'])) {
+        $ip = trim($_SERVER['HTTP_X_FORWARDED']);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            return $ip;
+        }
+    }
+    
+    // Get REMOTE_ADDR (mod_remoteip will have updated this if configured)
+    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    
+    // In Docker, localhost requests through the bridge show as Docker gateway IP
+    // Try to detect if this is a localhost request
+    if (filter_var($remoteAddr, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        // Common Docker bridge network ranges
+        $isDockerBridge = (
+            (strpos($remoteAddr, '172.17.') === 0) ||
+            (strpos($remoteAddr, '172.18.') === 0) ||
+            (strpos($remoteAddr, '172.19.') === 0) ||
+            (strpos($remoteAddr, '172.20.') === 0) ||
+            (strpos($remoteAddr, '172.21.') === 0) ||
+            (strpos($remoteAddr, '172.22.') === 0) ||
+            (strpos($remoteAddr, '172.23.') === 0) ||
+            (strpos($remoteAddr, '172.24.') === 0) ||
+            (strpos($remoteAddr, '172.25.') === 0) ||
+            (strpos($remoteAddr, '172.26.') === 0) ||
+            (strpos($remoteAddr, '172.27.') === 0) ||
+            (strpos($remoteAddr, '172.28.') === 0) ||
+            (strpos($remoteAddr, '172.29.') === 0) ||
+            (strpos($remoteAddr, '172.30.') === 0) ||
+            (strpos($remoteAddr, '172.31.') === 0) ||
+            (strpos($remoteAddr, '192.168.128.') === 0)
+        );
+        
+        // If it's a Docker bridge IP and we're accessing via localhost, indicate that
+        if ($isDockerBridge && isset($_SERVER['HTTP_HOST'])) {
+            $host = strtolower($_SERVER['HTTP_HOST']);
+            if (strpos($host, 'localhost') !== false || strpos($host, '127.0.0.1') !== false) {
+                return '127.0.0.1 (localhost via Docker bridge)';
+            }
+        }
+    }
+    
+    return $remoteAddr;
+}
+
 // Function to log inbound requests to main logs directory
 function logInboundRequest($config, $requestData) {
     $logDirectory = $config['LOG_DIRECTORY'];
@@ -65,7 +130,7 @@ function logInboundRequest($config, $requestData) {
         'server' => [
             'base_url' => $config['BASE_URL'],
             'client_identifier' => $identifier,
-            'ip' => $requestData['ip'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+            'ip' => $requestData['ip'] ?? getClientIp()
         ]
     ];
     
@@ -141,7 +206,7 @@ $requestData = [
     'body' => $rawBody,
     'query' => $_GET,
     'timestamp' => date('Y-m-d H:i:s'),
-    'ip' => $_SERVER['REMOTE_ADDR']
+    'ip' => getClientIp()
 ];
 
 // Try to parse JSON body

@@ -1,0 +1,24 @@
+# Nginx reverse proxy configuration to preserve real client IPs on macOS
+# This file is for reference - you would run nginx on the host (not in Docker)
+# to preserve real client IP addresses when using Docker Desktop on macOS
+
+server {
+    listen 8080;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# To use this:
+# 1. Install nginx on your Mac: brew install nginx
+# 2. Copy this file to /opt/homebrew/etc/nginx/servers/api-tester.conf
+# 3. Update docker-compose.yml to use port 8081 instead of 8080
+# 4. Restart nginx: brew services restart nginx
+# 5. Access via http://localhost:8080 (nginx) -> http://localhost:8081 (Docker)
+

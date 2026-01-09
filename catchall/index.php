@@ -24,10 +24,10 @@
             <a class="nav-link" href="../post-form.html">Send Request</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="../template-management.html">Manage Templates</a>
+            <a class="nav-link active" aria-current="page" href="index.php">Receive</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link active" aria-current="page" href="index.php">Receive (Webhook Catcher)</a>
+            <a class="nav-link" href="../template-management.html">Manage Templates</a>
           </li>
         </ul>
       </div>
@@ -51,17 +51,52 @@
             </div>
         </div>
         
-        <!-- Response Template Selector -->
+        <!-- Response Template Section -->
         <div class="row mb-4">
-            <div class="col-md-6 offset-md-3">
-                <label for="responseTemplate" class="form-label">
-                    Response Template (Optional)
-                    <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Select a custom response template to return when requests are received. If no template is selected, the default JSON response will be sent. Response templates can be created in the 'Manage Templates' page."></i>
-                </label>
-                <select id="responseTemplate" class="form-select">
-                    <option value="">Default Response (JSON)</option>
-                </select>
-                <small class="form-text text-muted">Select a custom response template to return when requests are received</small>
+            <div class="col-md-8 offset-md-2">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Response Template</h5>
+                        <a href="../template-management.html" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-circle"></i> Create Template
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="responseTemplate" class="form-label">
+                                Active Response Template
+                                <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Select a custom response template to return when requests are received. If no template is selected, the default JSON response will be sent."></i>
+                            </label>
+                            <select id="responseTemplate" class="form-select">
+                                <option value="">Default Response (JSON)</option>
+                            </select>
+                            <small class="form-text text-muted">This response will be returned to clients sending requests to your webhook URL</small>
+                        </div>
+                        
+                        <!-- Template Preview -->
+                        <div id="template-preview" class="d-none">
+                            <hr>
+                            <h6>Template Preview</h6>
+                            <div class="mb-2">
+                                <strong>Status Code:</strong> <span id="preview-status-code" class="badge bg-info">200</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Headers:</strong>
+                                <pre id="preview-headers" class="bg-light p-2 rounded small mb-0"></pre>
+                            </div>
+                            <div>
+                                <strong>Response Body:</strong>
+                                <pre id="preview-body" class="bg-light p-2 rounded small mb-0"></pre>
+                            </div>
+                        </div>
+                        
+                        <!-- No Templates Message -->
+                        <div id="no-templates-message" class="alert alert-info d-none">
+                            <i class="bi bi-info-circle"></i> No response templates found. 
+                            <a href="../template-management.html" class="alert-link">Create one here</a> to customize webhook responses.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -91,6 +126,9 @@
         // Set the webhook URL to point to the API endpoint (same directory as index.php)
         webhookUrl.value = window.location.origin + window.location.pathname.replace('index.php', 'api.php');
         
+        // Store templates for preview
+        let allResponseTemplates = {};
+        
         // Load response templates
         async function loadResponseTemplates() {
             try {
@@ -101,7 +139,18 @@
                 // Filter for response templates (type === 'response_template')
                 const responseTemplates = Object.entries(templates)
                     .filter(([name, details]) => details.type === 'response_template')
-                    .map(([name, details]) => ({ name, ...details }));
+                    .map(([name, details]) => {
+                        allResponseTemplates[name] = details;
+                        return { name, ...details };
+                    });
+                
+                // Show/hide no templates message
+                const noTemplatesMsg = document.getElementById('no-templates-message');
+                if (responseTemplates.length === 0) {
+                    noTemplatesMsg.classList.remove('d-none');
+                } else {
+                    noTemplatesMsg.classList.add('d-none');
+                }
                 
                 // Populate selector
                 responseTemplateSelector.innerHTML = '<option value="">Default Response (JSON)</option>';
@@ -114,17 +163,77 @@
                 
                 // Load saved selection from localStorage
                 const savedTemplate = localStorage.getItem('catchall_response_template');
-                if (savedTemplate) {
+                if (savedTemplate && allResponseTemplates[savedTemplate]) {
                     responseTemplateSelector.value = savedTemplate;
+                    updateTemplatePreview(savedTemplate);
+                } else {
+                    hideTemplatePreview();
                 }
             } catch (error) {
                 console.error('Error loading response templates:', error);
             }
         }
         
+        // Update template preview
+        function updateTemplatePreview(templateName) {
+            const preview = document.getElementById('template-preview');
+            const template = allResponseTemplates[templateName];
+            
+            if (!template) {
+                hideTemplatePreview();
+                return;
+            }
+            
+            // Show preview
+            preview.classList.remove('d-none');
+            
+            // Update status code
+            const statusCode = template.status_code || 200;
+            document.getElementById('preview-status-code').textContent = statusCode;
+            document.getElementById('preview-status-code').className = 'badge ' + 
+                (statusCode >= 200 && statusCode < 300 ? 'bg-success' : 
+                 statusCode >= 400 && statusCode < 500 ? 'bg-warning' : 
+                 statusCode >= 500 ? 'bg-danger' : 'bg-info');
+            
+            // Update headers
+            const headers = template.headers || {};
+            document.getElementById('preview-headers').textContent = JSON.stringify(headers, null, 2);
+            
+            // Update body
+            let bodyText = '';
+            if (template.body) {
+                if (typeof template.body === 'string') {
+                    // Try to parse as JSON for pretty printing
+                    try {
+                        const parsed = JSON.parse(template.body);
+                        bodyText = JSON.stringify(parsed, null, 2);
+                    } catch (e) {
+                        bodyText = template.body;
+                    }
+                } else {
+                    bodyText = JSON.stringify(template.body, null, 2);
+                }
+            }
+            document.getElementById('preview-body').textContent = bodyText || '(empty)';
+        }
+        
+        // Hide template preview
+        function hideTemplatePreview() {
+            document.getElementById('template-preview').classList.add('d-none');
+        }
+        
         // Save selection when changed
         responseTemplateSelector.addEventListener('change', () => {
-            localStorage.setItem('catchall_response_template', responseTemplateSelector.value);
+            const selectedTemplate = responseTemplateSelector.value;
+            localStorage.setItem('catchall_response_template', selectedTemplate);
+            
+            // Update preview
+            if (selectedTemplate && allResponseTemplates[selectedTemplate]) {
+                updateTemplatePreview(selectedTemplate);
+            } else {
+                hideTemplatePreview();
+            }
+            
             // Update API with current selection
             updateResponseTemplate();
         });

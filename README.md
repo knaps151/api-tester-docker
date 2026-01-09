@@ -1,302 +1,238 @@
+# API Tester
 
-# API Tester Application
-
-The **API Tester** is a web-based tool designed to simplify testing and management of API requests. It includes features such as sending API requests, managing shared templates, viewing real-time logs, and more. The application is designed to be used by multiple users sharing the same instance.
+A web-based tool for testing APIs, managing request templates, and capturing webhooks. Perfect for development, debugging, and API integration testing.
 
 ## Features
 
-### 1. **Send API Requests**
-- Supports POST requests with customizable endpoints and JSON payloads.
-- Includes pre-built templates for commonly used API requests.
+- **Send API Requests**: Proxy requests to external APIs with full logging
+- **Webhook Catcher**: Capture and inspect incoming webhook requests
+- **Template Management**: Save and reuse API request templates
+- **Real-Time Logs**: View all requests and responses with search and filtering
+- **Request Logging**: Automatic logging of all inbound and outbound requests
 
-### 2. **Manage Templates**
-- Templates are stored server-side in a shared `templates.json` file.
-- Users can:
-  - Select from pre-built templates.
-  - Add new templates.
-  - Delete templates.
+## Quick Start
 
-### 3. **View Real-Time Logs**
-- Logs are updated in real-time without needing to refresh the page.
-- Includes:
-  - Log preview functionality to view request details.
-  - Search and filter logs by filename or identifier.
-  - Pagination for managing large numbers of logs.
+### Prerequisites
 
-### 4. **Delete Logs**
-- Each log entry includes a delete button to remove it from the server.
-- Log filenames include an identifier (e.g., `demo1_YYYY-MM-DD_HH-MM-SS_uniqueid.json`) for easy identification.
+- Docker and Docker Compose installed
 
-## File Structure
+### Running the Application
 
-```
-/var/www/html/apitester
-    ├── api.php           # Main API logic (handles logs, templates, and requests)
-    ├── config.php        # Configuration file
-    ├── templates.json    # Server-side storage for shared templates
-    ├── index.html        # Frontend for viewing logs
-    ├── post-form.html    # Frontend for sending API requests
-    ├── logs/             # Directory for log files
-```
-
-## Setup Instructions
-
-### Option 1: Docker (Recommended)
-
-The easiest way to run the API Tester is using Docker.
-
-#### Prerequisites
-- Docker installed ([Install Docker](https://docs.docker.com/get-docker/))
-- Docker Compose (usually included with Docker Desktop)
-
-#### Quick Start
-
-1. **Build and run the container:**
+1. **Start the container:**
    ```bash
    docker-compose up -d
    ```
 
 2. **Access the application:**
-   - Open your browser and navigate to: `http://localhost:8080`
-   - The application will be available at the root path
+   - Main interface: http://localhost:8080
+   - Log viewer: http://localhost:8080/index.html
+   - Send requests: http://localhost:8080/post-form.html
+   - Webhook catcher: http://localhost:8080/catchall/index.php
+   - Template management: http://localhost:8080/template-management.html
 
 3. **Stop the container:**
    ```bash
    docker-compose down
    ```
 
-#### Docker Commands
+## Network Access
 
-- **Build the image:**
-  ```bash
-  docker-compose build
-  ```
+The application is accessible from other devices on your local network by default.
 
-- **View logs:**
-  ```bash
-  docker-compose logs -f
-  ```
+### Accessing from Other Devices
 
-- **Restart the container:**
-  ```bash
-  docker-compose restart
-  ```
+1. **Find your machine's IP address:**
+   ```bash
+   # On macOS/Linux
+   ifconfig | grep "inet " | grep -v 127.0.0.1
+   
+   # On Windows
+   ipconfig
+   ```
 
-- **Remove the container and volumes:**
-  ```bash
-  docker-compose down -v
-  ```
+2. **Access from other devices:**
+   - Replace `localhost` with your machine's IP address
+   - Example: `http://10.0.0.151:8080` (use your actual IP)
+   - The BASE_URL is automatically detected from the request, so it will use the correct IP/domain based on how it's accessed
 
-#### Configuration
+### Firewall Considerations
 
-The `docker-compose.yml` file includes:
-- **Port mapping:** Container port 80 is mapped to host port 8080 (change in docker-compose.yml if needed)
-- **Volume mounts:** 
-  - `./logs` - Persists log files across container restarts
-  - `./templates.json` - Persists templates across container restarts
-- **Environment variables:**
-  - `BASE_URL` - Set to `http://localhost:8080/` by default (update if using different host/port)
+If other devices can't connect, check your firewall:
+- **macOS**: System Settings → Network → Firewall (may need to allow incoming connections)
+- **Linux**: Check `ufw` or `iptables` rules
+- **Windows**: Windows Defender Firewall settings
 
-#### Custom Port
+The container binds to `0.0.0.0:8080` by default, making it accessible on all network interfaces.
 
-To use a different port, edit `docker-compose.yml`:
+### Client IP Address Detection
+
+**macOS Docker Desktop Limitation**: Due to Docker Desktop's VM architecture, client IP addresses will show as the Docker gateway IP (e.g., `192.168.128.1`) instead of the real client IP. This is a known limitation of Docker Desktop on macOS.
+
+**Workaround for macOS**: To see real client IPs, you can run a reverse proxy (like nginx) on your Mac that forwards to the Docker container. See `nginx-proxy.conf.example` for a reference configuration.
+
+**Linux hosts**: To see real client IP addresses, you can use host networking mode. Edit `docker-compose.yml`:
+
+```yaml
+services:
+  apitester:
+    network_mode: host
+    # Remove the ports section when using host networking
+```
+
+Then update the Dockerfile to configure Apache for port 8080 and rebuild: `docker-compose build && docker-compose up -d`
+
+## Configuration
+
+### Change Port
+
+Edit `docker-compose.yml` to use a different port:
+
 ```yaml
 ports:
-  - "YOUR_PORT:80"  # Change YOUR_PORT to desired port number
+  - "YOUR_PORT:80"  # Replace YOUR_PORT with your desired port
 ```
 
-#### Building the Docker Image Manually
-
-If you prefer to build and run without docker-compose:
+Then restart:
 ```bash
-# Build the image
-docker build -t apitester .
-
-# Run the container
-docker run -d \
-  -p 8080:80 \
-  -v $(pwd)/logs:/var/www/html/logs \
-  -v $(pwd)/templates.json:/var/www/html/templates.json \
-  -e BASE_URL=http://localhost:8080/ \
-  --name apitester \
-  apitester
+docker-compose down
+docker-compose up -d
 ```
 
----
+### Override Base URL (Advanced)
 
-### Option 2: Manual Installation
+The `BASE_URL` is automatically detected from request headers, so it works correctly whether accessed via localhost or network IP. If you need to manually override it, uncomment the environment section in `docker-compose.yml`:
 
-### 1. **Install Required Software**
-- A web server (e.g., Apache or Nginx).
-- PHP installed and configured.
+```yaml
+environment:
+  - BASE_URL=http://your-ip:8080/
+```
 
-### 2. **Deploy the Application**
-1. Place all files in the `/var/www/html/apitester` directory.
-2. Set proper permissions:
-   ```bash
-   sudo chown -R www-data:www-data /var/www/html/apitester
-   sudo chmod 664 /var/www/html/apitester/templates.json
-   sudo chmod 755 /var/www/html/apitester/logs
-   ```
-
-3. Ensure the `logs/` directory exists:
-   ```bash
-   mkdir /var/www/html/apitester/logs
-   sudo chmod 755 /var/www/html/apitester/logs
-   ```
-
-4. Create the `templates.json` file:
-   ```bash
-   touch /var/www/html/apitester/templates.json
-   sudo chmod 664 /var/www/html/apitester/templates.json
-   ```
-
-### 3. **Access the Application**
-- Open the browser and navigate to: `http://<server-ip>/apitester/`
+Then restart: `docker-compose restart`
 
 ## Using the Application
 
-### **1. View Logs**
-1. Open `index.html` to see a list of logs.
-2. Use the search bar to filter logs by name.
-3. Click on a log to preview its contents.
-4. Use the delete button (trash icon) to remove logs.
+### View Logs
 
-### **2. Send API Requests**
-1. Open `post-form.html` to access the request form.
-2. Fill in the endpoint and JSON payload fields manually or select a template.
-3. Include a custom identifier in the URL query string, e.g., `?id=demo1` to help identify logs.
-4. Click "Send Request" to execute the request.
+1. Navigate to the log viewer (http://localhost:8080/index.html)
+2. Use the search bar to filter logs by identifier or filename
+3. Click on any log entry to view full request/response details
+4. Delete logs using the delete button
 
-### **3. Manage Templates**
-- **Select Template**: Choose a template from the dropdown to prefill the request form.
-- **Add Template**:
-  1. Fill in the endpoint and payload fields.
-  2. Enter a name in the "Add New Template" section.
-  3. Click "Save Template."
-- **Delete Template**: (Not implemented yet).
-  - Planned feature to allow deletion of templates from the dropdown.
+### Send API Requests
 
-### **4. Sending Inbound Payloads from External Tools**
-To send payloads to the API Tester from external tools like Postman or custom scripts:
-1. **API Endpoint**: Use the URL `http://<server-ip>/apitester/api.php`.
-2. **Add Custom Identifier**:
-   - Append a query parameter to the URL to include a custom identifier, e.g., `http://<server-ip>/apitester/api.php?id=demo1`.
-   - This identifier will appear in the log filenames for easier tracking.
-3. **Payload**:
-   - Send your payload as JSON in the body of the request.
-   - Example using Postman:
-     - Set the method to `POST`.
-     - Enter the URL with the identifier.
-     - In the "Body" tab, select "raw" and choose JSON as the format.
-     - Add your JSON payload.
-4. **Log Results**:
-   - Check the logs in the application to confirm the request was received.
+1. Go to the request form (http://localhost:8080/post-form.html)
+2. Select a template or enter:
+   - HTTP method (GET, POST, PUT, DELETE, etc.)
+   - Endpoint URL
+   - Headers (optional)
+   - Request body (optional)
+3. Add a custom identifier (e.g., `?id=my-test`) to help identify logs
+4. Click "Send Request"
+5. View the response and check logs for the full request/response details
 
-Example cURL command:
-```bash
-curl -X POST "http://<server-ip>/apitester/api.php?id=demo1" \
-     -H "Content-Type: application/json" \
-     -d '{"key": "value"}'
-```
+### Capture Webhooks
 
-## API Endpoints
+1. Go to the webhook catcher (http://localhost:8080/catchall/index.php)
+2. Copy the webhook URL displayed
+3. Configure your external service to send webhooks to this URL
+4. View incoming requests in real-time on the page
+5. All requests are automatically logged to the logs directory
 
-### **1. Template Management**
-- **GET /api.php**
-  - Fetch all saved templates.
-  - Response:
-    ```json
-    {
-      "template_name": {
-        "endpoint": "<API endpoint>",
-        "payload": "<JSON payload>"
-      }
-    }
-    ```
+### Manage Templates
 
-- **POST /api.php**
-  - Add a new template.
-  - Request body:
-    ```json
-    {
-      "name": "template_name",
-      "endpoint": "<API endpoint>",
-      "payload": "<JSON payload>"
-    }
-    ```
+1. Go to template management (http://localhost:8080/template-management.html)
+2. **Add a template:**
+   - Fill in the request form with your endpoint, method, headers, and payload
+   - Enter a template name
+   - Click "Save Template"
+3. **Use a template:**
+   - Select a template from the dropdown in the request form
+   - The form will be pre-filled with the template data
+4. **Delete a template:**
+   - Use the delete button next to each template
 
-- **DELETE /api.php**
-  - Planned feature to delete an existing template.
+## Data Persistence
 
-### **2. Log Management**
-- Logs are stored in the `/logs/` directory.
-- Log filenames include an identifier, timestamp, and unique ID (e.g., `demo1_YYYY-MM-DD_HH-MM-SS_uniqueid.json`).
+The following data persists across container restarts:
+- `./logs/` - All request/response logs
+- `./templates.json` - Saved templates
+- `./catchall/requests.json` - Webhook request data
 
 ## Troubleshooting
 
-### **1. Templates Not Saving**
-- Ensure the `templates.json` file exists and has write permissions.
-  ```bash
-  sudo chown www-data:www-data /var/www/html/apitester/templates.json
-  sudo chmod 664 /var/www/html/apitester/templates.json
-  ```
+### Container won't start
 
-### **2. Logs Not Displaying**
-- Check if the `logs/` directory exists and is writable:
-  ```bash
-  chmod 755 /var/www/html/apitester/logs
-  ```
+```bash
+# Check logs
+docker-compose logs
 
-- Verify PHP error logs for issues:
-  ```bash
-  sudo tail -f /var/log/apache2/error.log
-  ```
+# Rebuild the image
+docker-compose build --no-cache
+docker-compose up -d
+```
 
-### **3. 500 Internal Server Error**
-- Check permissions for the application directory and files.
-- Verify the PHP installation and server configuration.
+### Port already in use
 
-## Future Improvements
+Change the port in `docker-compose.yml` or stop the conflicting service.
 
-1. **Authentication**: Add user authentication for secure access.
-2. **Database Integration**: Replace `templates.json` with a database for better scalability.
-3. **WebSocket Logs**: Implement WebSockets for real-time log updates without polling.
-4. **Template Deletion**: Fully implement the ability to delete templates.
+### View container logs
 
----
+```bash
+# View application logs
+docker-compose logs -f
 
-## GitHub Setup
+# View Apache error logs
+docker exec apitester tail -f /var/log/apache2/error.log
+```
 
-This project is ready to be pushed to GitHub. Before pushing:
+### Access container shell
 
-1. **Copy the example templates file:**
-   ```bash
-   cp templates.json.example templates.json
-   ```
+```bash
+docker exec -it apitester bash
+```
 
-2. **Initialize git repository (if not already done):**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   ```
+## Example Usage
 
-3. **Add your GitHub remote and push:**
-   ```bash
-   git remote add origin https://github.com/yourusername/apitester.git
-   git branch -M main
-   git push -u origin main
-   ```
+### Send a test request via cURL
 
-### Files Ignored by Git
+```bash
+curl -X POST "http://localhost:8080/api.php" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "proxy",
+    "method": "GET",
+    "endpoint": "https://httpbin.org/get",
+    "logIdentifier": "test-request"
+  }'
+```
 
-The following files are excluded from version control (see `.gitignore`):
-- `logs/*.json` - Log files
-- `templates.json` - User-specific templates (use `templates.json.example` as a template)
-- IDE and OS-specific files
-- Temporary files
+### Send data to webhook catcher
 
----
+```bash
+curl -X POST "http://localhost:8080/catchall/api.php?id=my-webhook" \
+  -H "Content-Type: application/json" \
+  -d '{"event": "test", "data": "example"}'
+```
 
-Enjoy using the API Tester! 🚀
+## Docker Commands Reference
+
+```bash
+# Start the application
+docker-compose up -d
+
+# Stop the application
+docker-compose down
+
+# View logs
+docker-compose logs -f
+
+# Restart the application
+docker-compose restart
+
+# Rebuild after code changes
+docker-compose build
+docker-compose up -d
+
+# Remove container and volumes (deletes all data)
+docker-compose down -v
+```

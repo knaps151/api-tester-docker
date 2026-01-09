@@ -5,18 +5,22 @@ services:
     build: .
     container_name: apitester
     ports:
-      - "8080:80"
+      # Bind to all network interfaces (0.0.0.0) to allow access from other devices
+      # Note: On macOS Docker Desktop, client IPs will show as Docker gateway IP
+      # On Linux, consider using network_mode: host for real client IPs
+      - "0.0.0.0:8080:80"
     volumes:
       # Persist logs and templates across container restarts
       - ./logs:/var/www/html/logs
       - ./templates.json:/var/www/html/templates.json
-    environment:
-      - BASE_URL=http://localhost:8080/
+      # Mount HTML files for live updates without rebuilding
+      - ./index.html:/var/www/html/index.html
+      - ./post-form.html:/var/www/html/post-form.html
+      - ./template-management.html:/var/www/html/template-management.html
+      - ./catchall:/var/www/html/catchall
+    # BASE_URL is auto-detected from request headers
+    # To override, uncomment the environment section below:
+    # environment:
+    #   - BASE_URL=http://your-ip:8080/
     restart: unless-stopped
-    networks:
-      - apitester-network
-
-networks:
-  apitester-network:
-    driver: bridge
 
