@@ -2,6 +2,10 @@
 
 A web-based tool for testing APIs, managing request templates, and capturing webhooks. Perfect for development, debugging, and API integration testing.
 
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 ## Features
 
 - **Send API Requests**: Proxy requests to external APIs with full logging
