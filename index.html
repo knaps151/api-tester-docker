@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Tester - Logs</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="index.html">API Tester</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="index.html">Logs</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="post-form.html">Send Request</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="catchall/index.php">Receive</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="template-management.html">Manage Templates</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h1 class="text-center">Real-Time Logs</h1>
+
+    <!-- Filter Options -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <label for="log-filter" class="form-label">
+          Search Logs
+          <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Search logs by filename. Type part of the filename to filter results. Logs are automatically refreshed every 10 seconds."></i>
+        </label>
+        <input type="text" id="log-filter" class="form-control" placeholder="Search logs by filename (e.g., demo1)">
+      </div>
+      <div class="col-md-6 text-end d-flex align-items-end">
+        <button id="apply-filter" class="btn btn-primary">Apply Filter</button>
+      </div>
+    </div>
+
+    <!-- Logs List -->
+    <div id="logs-container" class="mt-3">
+      <p>Loading logs...</p>
+    </div>
+
+    <!-- Pagination -->
+    <nav id="pagination" aria-label="Log Pagination" class="mt-4">
+      <ul class="pagination justify-content-center">
+        <!-- Pagination buttons will be dynamically added here -->
+      </ul>
+    </nav>
+
+    <!-- Log Preview -->
+    <h2 class="mt-5">
+      Log Preview
+      <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Click on any log file above to view its full content here. Logs show request/response details including headers, payload, and timestamps."></i>
+    </h2>
+    <pre id="log-preview" class="bg-light p-3 border">Select a log file to preview its content.</pre>
+  </div>
+
+  <script>
+    const logsContainer = document.getElementById("logs-container");
+    const logPreview = document.getElementById("log-preview");
+    const logFilterInput = document.getElementById("log-filter");
+    const applyFilterButton = document.getElementById("apply-filter");
+    const paginationContainer = document.getElementById("pagination").querySelector(".pagination");
+
+    let logs = [];
+    let filteredLogs = [];
+    let currentPage = 1;
+    const logsPerPage = 10;
+
+    // Fetch and display logs
+    async function fetchLogs() {
+      try {
+        const logsUrl = "api.php?action=listLogs";
+        const response = await fetch(logsUrl);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        logs = await response.json();
+
+        if (logs.length === 0) {
+          logsContainer.innerHTML = "<p>No logs found.</p>";
+          paginationContainer.innerHTML = "";
+          return;
+        }
+
+        applyFilterAndRender();
+      } catch (error) {
+        logsContainer.innerHTML = `<p>Error fetching logs: ${error.message}</p>`;
+      }
+    }
+
+    // Apply filter and render logs
+    function applyFilterAndRender() {
+      const filter = logFilterInput.value.toLowerCase();
+      filteredLogs = logs.filter(log => log.toLowerCase().includes(filter));
+
+      renderLogs();
+      renderPagination();
+    }
+
+    // Render logs for the current page
+    function renderLogs() {
+      const startIndex = (currentPage - 1) * logsPerPage;
+      const endIndex = startIndex + logsPerPage;
+      const logsToShow = filteredLogs.slice(startIndex, endIndex);
+
+      if (logsToShow.length === 0) {
+        logsContainer.innerHTML = "<p>No logs found for this filter or page.</p>";
+        return;
+      }
+
+      // Fetch log content to determine type
+      const logPromises = logsToShow.map(async (file) => {
+        try {
+          const response = await fetch(`logs/${file}`);
+          if (response.ok) {
+            const logData = await response.json();
+            const type = logData.type || 'unknown';
+            const typeBadge = type === 'inbound' 
+              ? '<span class="badge bg-success me-2">Inbound</span>'
+              : type === 'outbound'
+              ? '<span class="badge bg-primary me-2">Outbound</span>'
+              : '';
+            return `
+              <div class="log-item mb-2 d-flex align-items-center">
+                ${typeBadge}
+                <a href="#" data-log="logs/${file}" class="log-link flex-grow-1">${file}</a>
+                <button class="btn btn-danger btn-sm delete-log" data-log="${file}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            `;
+          }
+        } catch (e) {
+          // If fetch fails, show without badge
+        }
+        return `
+          <div class="log-item mb-2 d-flex align-items-center">
+            <a href="#" data-log="logs/${file}" class="log-link flex-grow-1">${file}</a>
+            <button class="btn btn-danger btn-sm delete-log" data-log="${file}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        `;
+      });
+      
+      Promise.all(logPromises).then(logLinks => {
+        logsContainer.innerHTML = logLinks.join("");
+        
+        // Add event listeners for preview
+        document.querySelectorAll(".log-link").forEach(link => {
+          link.addEventListener("click", async (event) => {
+            event.preventDefault();
+            const logFileUrl = event.target.closest('a').getAttribute("data-log");
+            await fetchLogContent(logFileUrl);
+          });
+        });
+
+        // Add event listeners for delete
+        document.querySelectorAll(".delete-log").forEach(button => {
+          button.addEventListener("click", async (event) => {
+            event.preventDefault();
+            const filename = event.currentTarget.getAttribute("data-log");
+            await deleteLog(filename);
+          });
+        });
+      });
+      return;
+    }
+
+    // Render pagination
+    function renderPagination() {
+      const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+      paginationContainer.innerHTML = "";
+
+      for (let i = 1; i <= totalPages; i++) {
+        const pageButton = document.createElement("li");
+        pageButton.className = `page-item ${i === currentPage ? "active" : ""}`;
+        pageButton.innerHTML = `<a href="#" class="page-link">${i}</a>`;
+        pageButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          currentPage = i;
+          renderLogs();
+          renderPagination();
+        });
+        paginationContainer.appendChild(pageButton);
+      }
+    }
+
+    // Fetch and display log content
+    async function fetchLogContent(logFileUrl) {
+      try {
+        const response = await fetch(logFileUrl);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const logContent = await response.json();
+        logPreview.textContent = JSON.stringify(logContent, null, 2);
+      } catch (error) {
+        logPreview.textContent = `Error fetching log content: ${error.message}`;
+      }
+    }
+
+    // Delete a log file
+    async function deleteLog(filename) {
+      try {
+        const response = await fetch("api.php", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to delete log: ${filename}`);
+        }
+
+        const result = await response.json();
+        alert(result.message || "Log deleted successfully.");
+        fetchLogs(); // Refresh logs after deletion
+      } catch (error) {
+        alert(`Error deleting log: ${error.message}`);
+      }
+    }
+
+    // Event listeners
+    applyFilterButton.addEventListener("click", () => {
+      currentPage = 1; // Reset to first page when applying a filter
+      applyFilterAndRender();
+    });
+
+    // Initial fetch
+    fetchLogs();
+    setInterval(fetchLogs, 10000); // Update every 10 seconds
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Initialize Bootstrap tooltips after Bootstrap is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    });
+  </script>
+</body>
+</html>

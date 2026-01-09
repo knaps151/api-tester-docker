@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Tester - Send Request</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="index.html">API Tester</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">Logs</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="post-form.html">Send Request</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="template-management.html">Manage Templates</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="catchall/index.php">Receive (Webhook Catcher)</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h1 class="text-center">Send API Request</h1>
+
+    <!-- Template Selector -->
+    <div class="mb-4">
+      <label for="template-selector" class="form-label">
+        Select Template
+        <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Choose a saved template to auto-fill the form fields. Templates can be created and managed in the 'Manage Templates' page."></i>
+      </label>
+      <select id="template-selector" class="form-select">
+        <option value="">Select a template...</option>
+      </select>
+    </div>
+
+    <!-- Request Form -->
+    <form id="api-form" class="mt-4">
+      <div class="mb-3">
+        <label for="method" class="form-label">HTTP Method</label>
+        <select id="method" class="form-select">
+          <option value="POST">POST</option>
+          <option value="GET">GET</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="endpoint" class="form-label">API Endpoint</label>
+        <input type="url" id="endpoint" class="form-control" placeholder="Enter full API endpoint URL (https://example.com/api)" required>
+      </div>
+      <div class="mb-3">
+        <label for="headers" class="form-label">
+          Headers (Key-Value Pairs)
+          <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Enter HTTP headers as JSON. Example: {'Content-Type': 'application/json', 'Authorization': 'Bearer token123'}. Leave empty if no custom headers are needed."></i>
+        </label>
+        <textarea id="headers" class="form-control" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="payload" class="form-label">
+          Request Body (JSON)
+          <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Enter the request body as JSON. This is typically used for POST, PUT, and PATCH requests. For GET and DELETE requests, this field is usually empty."></i>
+        </label>
+        <textarea id="payload" class="form-control" rows="5" placeholder='{"key": "value"}'></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="timeout" class="form-label">
+          Timeout (ms)
+          <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Maximum time to wait for a response in milliseconds. Default is 5000ms (5 seconds). Increase for slower APIs."></i>
+        </label>
+        <input type="number" id="timeout" class="form-control" placeholder="Enter timeout in milliseconds" value="5000">
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Send Request</button>
+    </form>
+
+    <!-- Response Display -->
+    <div id="api-response" class="mt-4 bg-light p-3 border">Response will appear here.</div>
+  </div>
+
+  <script>
+    const API_URL = "api.php";
+
+    const templateSelector = document.getElementById("template-selector");
+    const methodSelector = document.getElementById("method");
+    const endpointInput = document.getElementById("endpoint");
+    const headersInput = document.getElementById("headers");
+    const payloadInput = document.getElementById("payload");
+    const timeoutInput = document.getElementById("timeout");
+    const apiResponse = document.getElementById("api-response");
+
+    // Fetch templates and populate the selector
+    async function fetchTemplates() {
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Failed to fetch templates: ${response.status}`);
+        const templates = await response.json();
+
+        // Populate the template selector
+        templateSelector.innerHTML = '<option value="">Select a template...</option>';
+        for (const [name, details] of Object.entries(templates)) {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          option.dataset.method = details.method || "POST";
+          option.dataset.endpoint = details.endpoint;
+          option.dataset.payload = details.payload || '{"key": "value"}';
+          option.dataset.headers = JSON.stringify(details.headers || {});
+          templateSelector.appendChild(option);
+        }
+      } catch (error) {
+        alert(`Error loading templates: ${error.message}`);
+      }
+    }
+
+    // Populate fields when a template is selected
+    templateSelector.addEventListener("change", () => {
+      const selectedOption = templateSelector.selectedOptions[0];
+      if (selectedOption.value) {
+        methodSelector.value = selectedOption.dataset.method || "POST";
+        endpointInput.value = selectedOption.dataset.endpoint || "";
+        payloadInput.value = selectedOption.dataset.payload || '{"key": "value"}';
+        headersInput.value = selectedOption.dataset.headers || '{"Content-Type": "application/json"}';
+      } else {
+        methodSelector.value = "POST";
+        endpointInput.value = "";
+        payloadInput.value = '{"key": "value"}';
+        headersInput.value = '{"Content-Type": "application/json"}';
+      }
+    });
+
+    // Handle form submission
+    document.getElementById("api-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const method = methodSelector.value;
+      const endpoint = endpointInput.value.trim();
+      const headers = JSON.parse(headersInput.value.trim() || "{}");
+      const payload = payloadInput.value.trim();
+      const timeout = parseInt(timeoutInput.value) || 5000;
+
+      if (!endpoint.startsWith("http")) {
+        alert("Please enter a valid API endpoint starting with http or https.");
+        return;
+      }
+
+      try {
+        console.log("Sending request...");
+        console.log("Method:", method);
+        console.log("Endpoint:", endpoint);
+        console.log("Headers:", headers);
+        console.log("Payload:", payload);
+
+        // Proxy request through api.php to avoid CORS issues
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "proxy",
+            method: method,
+            endpoint: endpoint,
+            headers: headers,
+            payload: payload,
+            timeout: timeout
+          })
+        });
+
+        const responseData = await response.json();
+
+        console.log("Response Status:", responseData.status);
+        console.log("Response Headers:", responseData.headers);
+        console.log("Response Body:", responseData.body);
+
+        if (responseData.error) {
+          apiResponse.textContent = `Error: ${responseData.error}`;
+        } else {
+          apiResponse.textContent = responseData.status >= 200 && responseData.status < 300
+            ? `Status: ${responseData.status}\n\nResponse:\n${responseData.body}`
+            : `Status: ${responseData.status}\n\nError Response:\n${responseData.body}`;
+        }
+      } catch (error) {
+        console.error("Fetch Error:", error);
+        apiResponse.textContent = `Error: ${error.message}`;
+      }
+    });
+
+    // Initialize the template selector
+    fetchTemplates();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Initialize Bootstrap tooltips after Bootstrap is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    });
+  </script>
+</body>
+</html>

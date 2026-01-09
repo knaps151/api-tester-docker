@@ -1,0 +1,60 @@
+# Log files
+logs/*.json
+logs/*.log
+
+# User data
+templates.json
+catchall/requests.json
+catchall/response_template.json
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# PHP
+vendor/
+composer.lock
+*.cache
+
+# Environment files (if you add them later)
+.env
+.env.local
+.env.*.local
+
+# Docker volumes (if any)
+docker-data/
+
+# Node modules (if you add any frontend build tools)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+dist/
+build/
+

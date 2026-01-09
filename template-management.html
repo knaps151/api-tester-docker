@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Tester - Manage Templates</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="index.html">API Tester</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">Logs</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="post-form.html">Send Request</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="template-management.html">Manage Templates</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="catchall/index.php">Receive (Webhook Catcher)</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h1 class="text-center">Manage Templates</h1>
+
+    <!-- Template List -->
+    <h3>Templates</h3>
+    <ul id="template-list" class="list-group mb-4">
+      <li class="list-group-item">Loading templates...</li>
+    </ul>
+
+    <!-- Edit/Add Template Form -->
+    <h3>Edit/Add Template</h3>
+    <form id="template-form">
+      <div class="mb-3">
+        <label for="template-name" class="form-label">Template Name</label>
+        <input type="text" id="template-name" class="form-control" placeholder="Enter template name" required>
+      </div>
+      <div class="mb-3">
+        <label for="template-type" class="form-label">
+          Template Type
+          <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Request Templates: Save API request configurations for reuse. Response Templates: Define custom responses for the webhook catcher to return when receiving requests."></i>
+        </label>
+        <select id="template-type" class="form-select">
+          <option value="request">Request Template (for sending requests)</option>
+          <option value="response_template">Response Template (for webhook responses)</option>
+        </select>
+      </div>
+      
+      <!-- Request Template Fields -->
+      <div id="request-template-fields">
+        <div class="mb-3">
+          <label for="template-method" class="form-label">HTTP Method</label>
+          <select id="template-method" class="form-select">
+            <option value="POST">POST</option>
+            <option value="GET">GET</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="template-endpoint" class="form-label">Endpoint</label>
+          <input type="text" id="template-endpoint" class="form-control" placeholder="Enter API endpoint">
+        </div>
+        <div class="mb-3">
+          <label for="template-headers" class="form-label">
+            Headers (Key-Value Pairs)
+            <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="HTTP headers as JSON object. Example: {'Content-Type': 'application/json', 'Authorization': 'Bearer token'}"></i>
+          </label>
+          <textarea id="template-headers" class="form-control" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="template-query-params" class="form-label">
+            Query Parameters (Key-Value Pairs)
+            <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="URL query parameters as JSON. These will be appended to the endpoint URL. Example: {'page': '1', 'limit': '10'} becomes ?page=1&limit=10"></i>
+          </label>
+          <textarea id="template-query-params" class="form-control" rows="2" placeholder='{"param1": "value1"}'></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="template-payload" class="form-label">Payload</label>
+          <textarea id="template-payload" class="form-control" rows="5" placeholder='{"key": "value"}'></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="template-timeout" class="form-label">Timeout (ms)</label>
+          <input type="number" id="template-timeout" class="form-control" placeholder="Enter timeout in milliseconds" value="5000">
+        </div>
+        <div class="mb-3">
+          <label for="template-auth" class="form-label">Authentication</label>
+          <select id="template-auth" class="form-select">
+            <option value="">None</option>
+            <option value="basic">Basic Auth</option>
+            <option value="bearer">Bearer Token</option>
+          </select>
+        </div>
+        <div id="template-auth-details" class="d-none">
+          <div class="mb-3">
+            <label for="template-auth-username" class="form-label">Username</label>
+            <input type="text" id="template-auth-username" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label for="template-auth-password" class="form-label">Password</label>
+            <input type="password" id="template-auth-password" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label for="template-auth-token" class="form-label">Bearer Token</label>
+            <input type="text" id="template-auth-token" class="form-control">
+          </div>
+        </div>
+      </div>
+      
+      <!-- Response Template Fields -->
+      <div id="response-template-fields" class="d-none">
+        <div class="mb-3">
+          <label for="response-status-code" class="form-label">
+            HTTP Status Code
+            <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="HTTP status code to return. Common codes: 200 (OK), 201 (Created), 400 (Bad Request), 404 (Not Found), 500 (Server Error)"></i>
+          </label>
+          <input type="number" id="response-status-code" class="form-control" placeholder="200" value="200">
+        </div>
+        <div class="mb-3">
+          <label for="response-headers" class="form-label">
+            Response Headers (Key-Value Pairs)
+            <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Custom headers to include in the response. Example: {'Content-Type': 'application/json', 'X-Custom-Header': 'value'}"></i>
+          </label>
+          <textarea id="response-headers" class="form-control" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="response-body" class="form-label">
+            Response Body
+            <i class="bi bi-question-circle text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="The response body to return. Can be JSON, plain text, or any format. This will be sent back to the client making the request to your webhook URL."></i>
+          </label>
+          <textarea id="response-body" class="form-control" rows="8" placeholder='{"status": "success", "message": "Request received"}'></textarea>
+          <small class="form-text text-muted">This will be returned as the response when a request is received by the webhook catcher</small>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success w-100">Save Template</button>
+    </form>
+  </div>
+
+  <script>
+    const API_URL = "api.php";
+
+    const templateList = document.getElementById("template-list");
+    const templateForm = document.getElementById("template-form");
+    const nameInput = document.getElementById("template-name");
+    const typeInput = document.getElementById("template-type");
+    const requestFields = document.getElementById("request-template-fields");
+    const responseFields = document.getElementById("response-template-fields");
+    const methodInput = document.getElementById("template-method");
+    const endpointInput = document.getElementById("template-endpoint");
+    const headersInput = document.getElementById("template-headers");
+    const queryParamsInput = document.getElementById("template-query-params");
+    const payloadInput = document.getElementById("template-payload");
+    const timeoutInput = document.getElementById("template-timeout");
+    const authSelector = document.getElementById("template-auth");
+    const authDetails = document.getElementById("template-auth-details");
+    const authUsername = document.getElementById("template-auth-username");
+    const authPassword = document.getElementById("template-auth-password");
+    const authToken = document.getElementById("template-auth-token");
+    const responseStatusCodeInput = document.getElementById("response-status-code");
+    const responseHeadersInput = document.getElementById("response-headers");
+    const responseBodyInput = document.getElementById("response-body");
+    
+    // Toggle between request and response template fields
+    function toggleTemplateFields() {
+      const isResponseTemplate = typeInput.value === 'response_template';
+      requestFields.classList.toggle('d-none', isResponseTemplate);
+      responseFields.classList.toggle('d-none', !isResponseTemplate);
+      
+      // Update required fields
+      endpointInput.required = !isResponseTemplate;
+    }
+    
+    typeInput.addEventListener('change', toggleTemplateFields);
+
+    // Fetch templates and populate the list
+    async function fetchTemplates() {
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Failed to fetch templates: ${response.status}`);
+        const templates = await response.json();
+
+        templateList.innerHTML = "";
+        for (const [name, details] of Object.entries(templates)) {
+          const listItem = document.createElement("li");
+          listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+          const templateType = details.type === 'response_template' ? 'Response Template' : 'Request Template';
+          listItem.innerHTML = `
+            <div>
+              <span><strong>${name}</strong></span>
+              <small class="text-muted d-block">${templateType}</small>
+            </div>
+            <button class="btn btn-primary btn-sm edit-template" data-name="${name}">Edit</button>
+          `;
+
+          listItem.querySelector(".edit-template").addEventListener("click", () => {
+            nameInput.value = name;
+            
+            // Set template type
+            const templateType = details.type === 'response_template' ? 'response_template' : 'request';
+            typeInput.value = templateType;
+            toggleTemplateFields();
+            
+            if (templateType === 'response_template') {
+              // Populate response template fields
+              responseStatusCodeInput.value = details.status_code || 200;
+              responseHeadersInput.value = JSON.stringify(details.headers || {}, null, 2);
+              responseBodyInput.value = typeof details.body === 'string' ? details.body : JSON.stringify(details.body || {}, null, 2);
+            } else {
+              // Populate request template fields
+              methodInput.value = details.method || "POST";
+              endpointInput.value = details.endpoint || "";
+              headersInput.value = JSON.stringify(details.headers || {}, null, 2);
+              queryParamsInput.value = JSON.stringify(details.queryParams || {}, null, 2);
+              payloadInput.value = details.payload || "";
+              timeoutInput.value = details.timeout || 5000;
+              authSelector.value = details.auth || "";
+              toggleAuthDetails();
+            }
+          });
+
+          templateList.appendChild(listItem);
+        }
+      } catch (error) {
+        alert(`Error loading templates: ${error.message}`);
+      }
+    }
+
+    // Toggle authentication details
+    function toggleAuthDetails() {
+      authDetails.classList.toggle("d-none", !authSelector.value);
+    }
+
+    authSelector.addEventListener("change", toggleAuthDetails);
+
+    // Save or update a template
+    templateForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const name = nameInput.value.trim();
+      const templateType = typeInput.value;
+      
+      let templateData;
+      
+      if (templateType === 'response_template') {
+        // Response template
+        const statusCode = parseInt(responseStatusCodeInput.value) || 200;
+        const headers = JSON.parse(responseHeadersInput.value.trim() || "{}");
+        const body = responseBodyInput.value.trim();
+        
+        templateData = {
+          name,
+          type: 'response_template',
+          status_code: statusCode,
+          headers: headers,
+          body: body
+        };
+      } else {
+        // Request template
+        const method = methodInput.value;
+        const endpoint = endpointInput.value.trim();
+        const headers = JSON.parse(headersInput.value.trim() || "{}");
+        const queryParams = JSON.parse(queryParamsInput.value.trim() || "{}");
+        const payload = payloadInput.value.trim();
+        const timeout = parseInt(timeoutInput.value) || 5000;
+        const auth = authSelector.value;
+        const authData = {
+          username: authUsername.value.trim(),
+          password: authPassword.value.trim(),
+          token: authToken.value.trim(),
+        };
+        
+        templateData = {
+          name,
+          method,
+          endpoint,
+          headers,
+          queryParams,
+          payload,
+          timeout,
+          auth,
+          authData
+        };
+      }
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(templateData)
+        });
+
+        if (!response.ok) throw new Error(`Failed to save template: ${response.status}`);
+        alert("Template saved successfully.");
+        templateForm.reset();
+        typeInput.value = 'request';
+        toggleTemplateFields();
+        fetchTemplates();
+      } catch (error) {
+        alert(`Error saving template: ${error.message}`);
+      }
+    });
+
+    // Initialize template list
+    fetchTemplates();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Initialize Bootstrap tooltips after Bootstrap is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    });
+  </script>
+</body>
+</html>

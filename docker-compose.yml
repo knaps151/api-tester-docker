@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  apitester:
+    build: .
+    container_name: apitester
+    ports:
+      - "8080:80"
+    volumes:
+      # Persist logs and templates across container restarts
+      - ./logs:/var/www/html/logs
+      - ./templates.json:/var/www/html/templates.json
+    environment:
+      - BASE_URL=http://localhost:8080/
+    restart: unless-stopped
+    networks:
+      - apitester-network
+
+networks:
+  apitester-network:
+    driver: bridge
+

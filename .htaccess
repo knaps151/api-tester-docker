@@ -1,0 +1,18 @@
+# Enable rewrite engine
+RewriteEngine On
+
+# Allow access to all files
+<FilesMatch "\.(php|html|json|css|js)$">
+    Require all granted
+</FilesMatch>
+
+# Set default directory index
+DirectoryIndex index.html index.php
+
+# Allow CORS (handled in PHP, but this helps with preflight)
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type"
+</IfModule>
+
