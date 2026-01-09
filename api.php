@@ -243,6 +243,13 @@ switch ($_SERVER['REQUEST_METHOD']) {
         // Delete a template or log file
         $rawBody = file_get_contents('php://input');
         $data = json_decode($rawBody, true);
+        
+        // Validate JSON parsing
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            http_response_code(400);
+            echo json_encode(["error" => "Invalid JSON in request body: " . json_last_error_msg()]);
+            exit;
+        }
 
         if (isset($data['filename'])) {
             // Delete a log file
