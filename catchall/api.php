@@ -2,6 +2,9 @@
 // Load the configuration for logging
 $config = require __DIR__ . '/../config.php';
 
+// Load the Logger class
+require_once __DIR__ . '/../Logger.php';
+
 // Set headers to allow all origins and methods
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -95,53 +98,6 @@ function getClientIp() {
     return $remoteAddr;
 }
 
-// Function to log inbound requests to main logs directory
-function logInboundRequest($config, $requestData) {
-    $logDirectory = $config['LOG_DIRECTORY'];
-    
-    // Ensure log directory exists
-    if (!is_dir($logDirectory)) {
-        @mkdir($logDirectory, 0755, true);
-    }
-    
-    // Generate identifier from query param or use default
-    $identifier = 'inbound';
-    if (isset($_GET['id'])) {
-        $identifier = preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['id']);
-    }
-    
-    // Generate timestamp and unique ID
-    $timestamp = date('Y-m-d H:i:s');
-    $datePart = date('Y-m-d');
-    $timePart = date('H-i-s');
-    $uniqueId = substr(uniqid(), -12);
-    
-    // Create log entry (similar format to outbound logs)
-    $logEntry = [
-        'timestamp' => $timestamp,
-        'type' => 'inbound',
-        'request' => [
-            'method' => $requestData['method'],
-            'uri' => $_SERVER['REQUEST_URI'] ?? '/catchall/api.php',
-            'query_string' => http_build_query($requestData['query'] ?? []),
-            'headers' => $requestData['headers'] ?? [],
-            'body' => $requestData['body'] ?? ''
-        ],
-        'server' => [
-            'base_url' => $config['BASE_URL'],
-            'client_identifier' => $identifier,
-            'ip' => $requestData['ip'] ?? getClientIp()
-        ]
-    ];
-    
-    // Generate filename
-    $filename = sprintf('%s_%s_%s_%s.json', $identifier, $datePart, $timePart, $uniqueId);
-    $filePath = $logDirectory . '/' . $filename;
-    
-    // Write log file
-    @file_put_contents($filePath, json_encode($logEntry, JSON_PRETTY_PRINT));
-}
-
 // Function to read requests from file
 function readRequests($file) {
     if (file_exists($file)) {
@@ -163,6 +119,13 @@ function writeRequests($file, $requests) {
 // Get request body to check for actions
 $rawBody = file_get_contents('php://input');
 $bodyData = json_decode($rawBody, true);
+
+// Validate JSON parsing for action requests
+if (isset($rawBody) && !empty($rawBody) && json_last_error() !== JSON_ERROR_NONE) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid JSON in request body: ' . json_last_error_msg()]);
+    exit();
+}
 
 // Handle get_requests action (for fetching existing requests)
 if (isset($bodyData['action']) && $bodyData['action'] === 'get_requests') {
@@ -212,6 +175,7 @@ $requestData = [
 // Try to parse JSON body
 try {
     $requestData['parsed_body'] = json_decode($requestData['body'], true);
+    // Note: We don't fail on JSON parse errors here as the body might not be JSON
 } catch (Exception $e) {
     $requestData['parsed_body'] = null;
 }
@@ -226,7 +190,7 @@ array_unshift($requests, $requestData);
 $requests = writeRequests($requestsFile, $requests);
 
 // Also log to main logs directory
-logInboundRequest($config, $requestData);
+Logger::logInboundRequest($config, $requestData);
 
 // Check if a response template is set
 $responseTemplateName = null;

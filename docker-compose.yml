@@ -13,10 +13,12 @@ services:
       # Persist logs and templates across container restarts
       - ./logs:/var/www/html/logs
       - ./templates.json:/var/www/html/templates.json
-      # Mount HTML files for live updates without rebuilding
+      # Mount HTML files and PHP files for live updates without rebuilding
       - ./index.html:/var/www/html/index.html
       - ./post-form.html:/var/www/html/post-form.html
       - ./template-management.html:/var/www/html/template-management.html
+      - ./api.php:/var/www/html/api.php
+      - ./Logger.php:/var/www/html/Logger.php
       - ./catchall:/var/www/html/catchall
     # BASE_URL is auto-detected from request headers
     # To override, uncomment the environment section below:

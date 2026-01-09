@@ -12,25 +12,22 @@ function detectBaseUrl() {
         return 'http://localhost:8080/';
     }
     
-    // Detect from request headers (works for both localhost and network access)
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
-              (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) 
-              ? 'https' : 'http';
+    // Determine protocol
+    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
     
-    $host = $_SERVER['HTTP_HOST'] ?? 
-            $_SERVER['SERVER_NAME'] ?? 
-            $_SERVER['SERVER_ADDR'] ?? 
-            'localhost';
+    // Get host from HTTP_HOST or fallback to SERVER_NAME
+    $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
     
-    $port = '';
-    if (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] != 80 && $_SERVER['SERVER_PORT'] != 443) {
-        // Only include port if it's not the default and not already in host
-        if (strpos($host, ':') === false) {
-            $port = ':' . $_SERVER['SERVER_PORT'];
-        }
+    // Get script directory path
+    $scriptPath = dirname($_SERVER['SCRIPT_NAME']);
+    // Ensure script path ends with / if not root
+    if ($scriptPath !== '/' && $scriptPath !== '\\') {
+        $scriptPath = rtrim($scriptPath, '/') . '/';
+    } else {
+        $scriptPath = '/';
     }
     
-    return $scheme . '://' . $host . $port . '/';
+    return $protocol . "://" . $host . $scriptPath;
 }
 
 return [
